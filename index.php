@@ -1,228 +1,214 @@
 <?php
-use PhpOffice\PhpWord\Element\AbstractContainer;
-use PhpOffice\PhpWord\Element\Text;
-use PhpOffice\PhpWord\Element\Table;
-use PhpOffice\PhpWord\Element\TextRun;
-use PhpOffice\PhpWord\Element\TextBreak;
-use PhpOffice\PhpWord\IOFactory as WordIOFactory;
+/*
+Plugin Name: Obits Processor v2
+Description: Converts an Obituary Docx file to simple text (Link available inside Tools > OPI Doc to Text)
+Version: 1.1
+Author: Anand
+*/
 
-require_once __DIR__.'/vendor/autoload.php';
-$all_data = [];
-function get_text_run_data($element){
-    // Recursive call for nested table
-    // $str =$element->getText();
-    // $str = str_replace(array("\n", "\r"), '#', $element->getText());
-    echo '<hr>';
-    $data = [
-                'name'=>[],
-                'flag'=>false,
-                'text'=>[]
-            ];
-    // Iterate through Text elements within the TextRun
-    foreach ($element->getElements() as $textElement) {
+function xml_validation_inprogress_notice() {
+	$class = 'notice notice-info inprogress-xml-notice d-none';
+	$message = __( 'Validating XML', 'sample-text-domain' );
 
-            
+	printf( '<div class="%1$s"><p><span class="dashicons dashicons-update spin" style="color:#72aee6;"></span> %2$s</p></div>', esc_attr( $class ), esc_html( $message ) ); 
+}
+function xml_validation_ok_notice() {
+	$class = 'notice notice-success valid-xml-notice d-none';
+	$message = __( 'XML is Valid', 'sample-text-domain' );
 
-        if($textElement instanceof Text && trim($textElement->getText()) !== ''){
+	printf( '<div class="%1$s"><p><span class="dashicons dashicons-yes-alt" style="color:#00a32a;"></span> %2$s</p></div>', esc_attr( $class ), esc_html( $message ) ); 
+}
+function xml_validation_error_notice() {
+	$class = 'notice notice-error invalid-xml-notice d-none';
+	$message = __( 'Invalid XML', 'sample-text-domain' );
 
-            if (str_contains(strtolower(trim($textElement->getText())), '/flag')) {
-                $data['flag'] = true;
-                echo 'FLAG ' . $textElement->getText();
+	printf( '<div class="%1$s"><p><span class="dashicons dashicons-warning" style="color:#d63638;"></span> %2$s</p></div>', esc_attr( $class ), esc_html( $message ) ); 
+}
+if (!function_exists('process_file'))
+{
+    require_once('custom_functions.php');
+}
+
+// add_action( 'admin_notices', 'xml_validation_ok_notice' );
+// Add a subpage to the Tools menu
+function opi_doc_to_text_menu() {
+    add_submenu_page(
+        'tools.php',            // Parent menu slug
+        'Obits Processor',      // Page title
+        'Obits Processor',      // Menu title
+        'manage_options',       // Capability required to access the page
+        'opi_doc_to_text_page', // Menu slug
+        'opi_doc_to_text_page'  // Callback function to display the page content
+    );
+}
+add_action('admin_menu', 'opi_doc_to_text_menu');
+
+// Callback function to display the page content
+function opi_doc_to_text_page() {
+
+    if (isset($_POST['adnumber'])) {
+        update_option('opi_doc_text_ad_number', intval($_POST['adnumber']) + 1);
+    }
+    ?>
+    <style>
+        .d-none{
+            display:none;
+        }
+        .dashicons.spin {
+       animation: dashicons-spin 1.2s infinite;
+       animation-timing-function: linear;
+    }
+
+    @keyframes dashicons-spin {
+       0% {
+          transform: rotate( 0deg );
+       }
+       100% {
+          transform: rotate( 360deg );
+       }
+    }
+    </style>
+    <script>
+        function run_validation(){
+            const xmlselector = 'pre#xmlOutput';
+            if(jQuery(xmlselector).length){
+                const brRegex = /<br\s*[\/]?>/gi;
+                const XMLTEXT = jQuery(xmlselector).text().replace(brRegex, "\r\n");
+                jQuery('.notice.inprogress-xml-notice').removeClass('d-none');
+
+
+                setTimeout(()=>{
+                        if(isValidXML(XMLTEXT)){
+                            jQuery('.notice').addClass('d-none');
+                            jQuery('.notice.valid-xml-notice').removeClass('d-none');
+                            jQuery(xmlselector).css('border-color','#00a32a');
+                        }else{
+                            jQuery('.notice').addClass('d-none');
+                            jQuery('.notice.invalid-xml-notice').removeClass('d-none');
+                            jQuery(xmlselector).css('border-color','#d63638');
+                        }
+                }, 1500);
+                
+            }else{
+                console.log('NOT FOUND');
             }
+        }
+        function isValidXML(xmlString) {
+          let parser = new DOMParser();
+          let xmlDoc;
 
-            else if($textElement->getFontStyle()->isBold()){
-                // $data['name'] = $textElement->getText();
-
-                array_push($data['name'], trim($textElement->getText()));
-                echo 'NAME ' . $textElement->getText();
+          try {
+            xmlDoc = parser.parseFromString(xmlString, "text/xml");
+            // Check if parsing resulted in errors
+            let errors = xmlDoc.getElementsByTagName("parsererror");
+            if (errors.length > 0) {
+              // XML is invalid
+              return false;
+            } else {
+              // XML is valid
+              return true;
             }
-            
+          } catch (error) {
+            // If an exception occurred during parsing
+            console.error("Error parsing XML:", error);
+            return false;
+          }
+        }
+        function copyToClipboard(element) {
+          let $temp = jQuery("<textarea>");
+          let brRegex = /<br\s*[\/]?>/gi;
+          jQuery("body").append($temp);
+          $temp.val(jQuery(element).text().replace(brRegex, "\r\n")).select();
+          document.execCommand("copy");
+          $temp.remove();
+          alert('XML Copied to Clipboard!');
+        }
+        function save(element, filename) {
+            let brRegex = /<br\s*[\/]?>/gi;
+            const data = jQuery(element).text().replace(brRegex, "\r\n");
+            const blob = new Blob([data], {type: 'text/xml'});
+            if(window.navigator.msSaveOrOpenBlob) {
+                window.navigator.msSaveBlob(blob, filename);
+            }
             else{
-                // $data['text'] = $textElement->getText();
-                array_push($data['text'], trim($textElement->getText()));
-                echo 'TEXT ' . $textElement->getText();
+                const elem = window.document.createElement('a');
+                elem.href = window.URL.createObjectURL(blob);
+                elem.download = filename;        
+                document.body.appendChild(elem);
+                elem.click();        
+                document.body.removeChild(elem);
             }
-
-            // array_push($all_data, $data);
-
-
-            // $name = ''.$textElement->getText();
-            // echo $name.' ## '.$isFlagDetected.' ## '. $obituaryText;
-            echo '<br/>';
         }
+    </script>
+    <div class="wrap">
+        <h1>Obits Processor</h1>
+        <form method="post" enctype="multipart/form-data">
+            <label for="file">Upload File:</label>
+            <input type="file" name="file" id="file" accept=".doc, .docx" required style="
+    width: 200px;
+">
 
-        
+            <label for="cars">Type:</label>
 
-
-        // Check if the Text is bold
-        // if ($textElement instanceof Text && $textElement->getFontStyle()->isBold()) {
-        //     $name .= ''.$textElement->getText();
-        //      echo '<br/>';
-        //     // echo "" . $textElement->getText() . "";
-        // } else {
-        //     if (str_contains(strtolower(trim($textElement->getText())), '/flag')) {
-        //         $isFlagDetected = true;
-        //     }else{
-        //         $obituaryText .= ' '.$textElement->getText();
-        //         // echo 'Obituary Text->'.$textElement->getText();
-        //     }
+            <select name="subclass" style='width:100px;'>
+              <option value="4001">Free</option>
+              <option value="4000">Paid</option>
+            </select>
             
-        // }
-        // echo "<br/>";
-    }
+            <label for="datepicker">Select Date:</label>
+            <input type="date" name="datepicker" id="datepicker" class="datepicker" required>
 
-    // if(trim($name)!==''){
-    //     $data['name'] = trim($name);
-    //     echo 'Name-> '.$name;
-    //     echo '<br/>';
+            <label for="datepicker" style='margin-left:15px;'>Starting Ad-Number:</label>
+            <input type="number" name="adnumber" min='1' max='1000' value='1' required>
+            
+            <input type="submit" name="submit" value="Upload" class="button button-primary">
+            <?php 
+            xml_validation_inprogress_notice();
+            xml_validation_ok_notice();
+            xml_validation_error_notice();
+            if (isset($_POST['submit'])) { ?>
+                <input type="button" name="copy" value="Copy XML to Clipboard" onclick="copyToClipboard('pre#xmlOutput')" class="button button-secondary">
+                <input type="button" name="download" value="Download" download='Legacy-<?php echo $_POST['subclass'];?>.xml' onclick="save('pre#xmlOutput','Legacy-<?php echo $_POST['subclass'];?>.xml')" class="button button-secondary">
+            <?php } ?>
+            
+        </form>
+
+        <?php if (isset($_POST['submit'])) {
+            
+            do_action('admin_post_opi_doc_to_text_submit');
+            
+          };?>
+
+          <script>
+            run_validation();
+          </script>
         
-    // }
+    </div>
+    <?php
     
-    // if($isFlagDetected){
-    //     $data['flag'] = true;
-    //     echo 'FLAG DETECTED';
-    //     echo '<br/>';
-    // }
-
-    // if(trim($obituaryText)!==''){
-    //     $data['text'] = $obituaryText;
-    //     echo 'Obituary Text-> '.$obituaryText;
-    //     echo '<br/>';
-    // }
-    // echo json_encode($all_data);
-    // return var_dump($all_data);
-    return $data;
 }
 
-// Recursive function to print text from table elements
-function printTextFromTable($table)
-{   $all_data = [];
-    foreach ($table->getRows() as $row) {
-        foreach ($row->getCells() as $cell) {
-            $data = [
-                'name'=>'',
-                'flag'=>false,
-                'text'=>''
-            ];
-            //echo 'START OF THE CELL<hr/>';
-            foreach ($cell->getElements() as $element) {
-                // print('inside table'.get_class($element).'<br />');
-                if ($element instanceof Text) {
-                    return $element->getText() . PHP_EOL;
-                } elseif ($element instanceof Table) {
-                    // Recursive call for nested table
-                    printTextFromTable($element);
-                } elseif ($element instanceof TextRun) {
-                    get_text_run_data($element);
-                }
-                elseif ($element instanceof TextBreak) {
-                    // Recursive call for nested table
-                    // print('TEXTBREAK<br/>');
-                }
-                //echo "<br/>";
-            }
-            // echo "<br/>";
-            array_push($all_data, $data);
-            //echo 'END OF THE CELL<hr/>';
-        }
-    }
-    // var_dump($all_data);
-    return $all_data;
-}
-
-function getWordText($element) {
-    // print(get_class($element).'<br />');
-    
-    $result = [];
-
-    // print(get_class($element).'<br/>');
-
-    if ($element instanceof Table) {
-            // Call the recursive function for each table
-            $result = printTextFromTable($element);
-
-    }
-    // and so on for other element types (see src/PhpWord/Element)
-
-    return $result;
-}
-
-function filterAndTransformObjects($objects) {
-    $containsNotice = function ($name) {
-        foreach ($name as $nameString) {
-            if (stripos($nameString, 'NOTICE') !== false) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    $result = [];
-    $prevObj = null;
-    foreach ($objects as $obj) {
-        if ($prevObj !== null) {
-            $prevHasNameNoText = !empty($prevObj['name']) && empty($prevObj['text']);
-            $currHasTextNoName = !empty($obj['text']) && empty($obj['name']);
-
-            if ($prevHasNameNoText && $currHasTextNoName) {
-                // Merge adjacent objects
-                $mergedName = implode(' ', array_map('trim', array_merge($prevObj['name'], $obj['name'])));
-                $mergedText = implode(' ', array_map('trim', array_merge($prevObj['text'], $obj['text'])));
-                $mergedObj = [
-                    'name' => $mergedName,
-                    'flag' => $prevObj['flag'] || $obj['flag'],
-                    'text' => $mergedText
-                ];
-                // Replace the previous object with the merged one
-                $result[count($result) - 1] = $mergedObj;
-                $prevObj = null; // Skip adding the current object to the result
-                continue;
-            }
-        }
-
-        if (!$containsNotice($obj['name'])) {
-            // Trim and merge name and text arrays into strings
-            $nameString = implode(' ', array_map('trim', $obj['name']));
-            $textString = implode(' ', array_map('trim', $obj['text']));
-            $result[] = [
-                'name' => $nameString,
-                'flag' => $obj['flag'],
-                'text' => $textString
-            ];
-        }
-
-        $prevObj = $obj;
-    }
-
-    return $result;
-}
-
-function process_file($filePath,$dateArray){
-    $all_data = [];
-    $text = '';
-    $objReader = WordIOFactory::createReader('Word2007');
-    $phpWord = $objReader->load($filePath); // instance of \PhpOffice\PhpWord\PhpWord
-    foreach ($phpWord->getSections() as $section) {
-        
-    foreach ($section->getElements() as $element) {
-           
-           print(get_class($element).'<br/>');
-
-           if ($element instanceof TextRun) {
-                    array_push($all_data, get_text_run_data($element));
-                    // echo '<br/><br/><br/><br/>';
-            }
-        //    var_dump($result);
-        //    print_xml($result, $dateArray);
-        }
-    }
-
-    echo '<pre>' . var_export(filterAndTransformObjects($all_data), true) . '</pre>';
-    // echo json_encode($all_data);
-}
-$dateArray = [
-        'YEAR' => '2024',
-        'MONTH' => '02',
-        'DAY' => '14',
+function get_date_object($datepickerString){
+    $datepicker_array = explode("-",$datepickerString);
+    return [
+        'YEAR' => $datepicker_array[0],
+        'MONTH' => $datepicker_array[1],
+        'DAY' => $datepicker_array[2],
     ];
-process_file('sample.docx', $dateArray);
+}
+
+// Handle form submission
+function handle_form_submission() {
+        // var_dump($_POST);
+        // var_dump($_FILES);
+
+        $datepicker_obj = get_date_object($_POST['datepicker']);
+
+        $filePath = dirname(__FILE__).'/'.$_FILES['file']['name'];
+        // $filePath = dirname(__FILE__).'/'.'sample.docx';
+
+        move_uploaded_file( $_FILES['file']['tmp_name'], $filePath);
+        process_file($filePath, $datepicker_obj);
+        unlink($filePath);
+}
+add_action('admin_post_opi_doc_to_text_submit', 'handle_form_submission');
