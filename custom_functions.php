@@ -243,6 +243,26 @@ PUB_CODES
 
 }
 
+function is_file_grid_fashion($phpWord){
+    foreach ($phpWord->getSections() as $section) {
+        foreach ($section->getElements() as $element) {
+           if ($element instanceof Table) {
+            return true;
+           }
+        }
+    }
+    return false;
+}
+
+function print_result_from_grid_file($phpWord, $dateArray){
+    foreach ($phpWord->getSections() as $section) {
+        foreach ($section->getElements() as $element) {
+           $result =  getWordText($element);
+           print_xml($result, $dateArray);
+        }
+    }
+}
+
 function process_file($filePath,$dateArray){
     $text = '';
     echo '<pre id="xmlOutput" style="
@@ -255,15 +275,16 @@ function process_file($filePath,$dateArray){
     ">';
     $objReader = WordIOFactory::createReader('Word2007');
     $phpWord = $objReader->load($filePath); // instance of \PhpOffice\PhpWord\PhpWord
-    foreach ($phpWord->getSections() as $section) {
-    foreach ($section->getElements() as $element) {
-       $result =  getWordText($element);
-       print_xml($result, $dateArray);
+    
+    if(is_file_grid_fashion($phpWord)){
+        print_result_from_grid_file($phpWord, $dateArray);
+    }else{
+        $result = get_result_from_flat_file($phpWord);
+
+        // var_dump($result);
+    
+        print_xml($result, $dateArray);
     }
+
     echo '</pre>';
 }
-}
-
-
-
-// echo $text;

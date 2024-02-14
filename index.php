@@ -29,6 +29,12 @@ if (!function_exists('process_file'))
     require_once('custom_functions.php');
 }
 
+if (!function_exists('get_result_from_flat_file'))
+{
+    require_once('flat_file.php');
+}
+
+
 // add_action( 'admin_notices', 'xml_validation_ok_notice' );
 // Add a subpage to the Tools menu
 function opi_doc_to_text_menu() {

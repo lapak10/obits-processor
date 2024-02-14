@@ -9,10 +9,7 @@ use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 require_once __DIR__.'/vendor/autoload.php';
 $all_data = [];
 function get_text_run_data($element){
-    // Recursive call for nested table
-    // $str =$element->getText();
-    // $str = str_replace(array("\n", "\r"), '#', $element->getText());
-    echo '<hr>';
+    // echo '<hr>';
     $data = [
                 'name'=>[],
                 'flag'=>false,
@@ -27,124 +24,26 @@ function get_text_run_data($element){
 
             if (str_contains(strtolower(trim($textElement->getText())), '/flag')) {
                 $data['flag'] = true;
-                echo 'FLAG ' . $textElement->getText();
+                // echo 'FLAG ' . $textElement->getText();
             }
 
             else if($textElement->getFontStyle()->isBold()){
                 // $data['name'] = $textElement->getText();
 
                 array_push($data['name'], trim($textElement->getText()));
-                echo 'NAME ' . $textElement->getText();
+                // echo 'NAME ' . $textElement->getText();
             }
             
             else{
                 // $data['text'] = $textElement->getText();
                 array_push($data['text'], trim($textElement->getText()));
-                echo 'TEXT ' . $textElement->getText();
+                // echo 'TEXT ' . $textElement->getText();
             }
 
-            // array_push($all_data, $data);
-
-
-            // $name = ''.$textElement->getText();
-            // echo $name.' ## '.$isFlagDetected.' ## '. $obituaryText;
-            echo '<br/>';
         }
-
-        
-
-
-        // Check if the Text is bold
-        // if ($textElement instanceof Text && $textElement->getFontStyle()->isBold()) {
-        //     $name .= ''.$textElement->getText();
-        //      echo '<br/>';
-        //     // echo "" . $textElement->getText() . "";
-        // } else {
-        //     if (str_contains(strtolower(trim($textElement->getText())), '/flag')) {
-        //         $isFlagDetected = true;
-        //     }else{
-        //         $obituaryText .= ' '.$textElement->getText();
-        //         // echo 'Obituary Text->'.$textElement->getText();
-        //     }
-            
-        // }
-        // echo "<br/>";
     }
 
-    // if(trim($name)!==''){
-    //     $data['name'] = trim($name);
-    //     echo 'Name-> '.$name;
-    //     echo '<br/>';
-        
-    // }
-    
-    // if($isFlagDetected){
-    //     $data['flag'] = true;
-    //     echo 'FLAG DETECTED';
-    //     echo '<br/>';
-    // }
-
-    // if(trim($obituaryText)!==''){
-    //     $data['text'] = $obituaryText;
-    //     echo 'Obituary Text-> '.$obituaryText;
-    //     echo '<br/>';
-    // }
-    // echo json_encode($all_data);
-    // return var_dump($all_data);
     return $data;
-}
-
-// Recursive function to print text from table elements
-function printTextFromTable($table)
-{   $all_data = [];
-    foreach ($table->getRows() as $row) {
-        foreach ($row->getCells() as $cell) {
-            $data = [
-                'name'=>'',
-                'flag'=>false,
-                'text'=>''
-            ];
-            //echo 'START OF THE CELL<hr/>';
-            foreach ($cell->getElements() as $element) {
-                // print('inside table'.get_class($element).'<br />');
-                if ($element instanceof Text) {
-                    return $element->getText() . PHP_EOL;
-                } elseif ($element instanceof Table) {
-                    // Recursive call for nested table
-                    printTextFromTable($element);
-                } elseif ($element instanceof TextRun) {
-                    get_text_run_data($element);
-                }
-                elseif ($element instanceof TextBreak) {
-                    // Recursive call for nested table
-                    // print('TEXTBREAK<br/>');
-                }
-                //echo "<br/>";
-            }
-            // echo "<br/>";
-            array_push($all_data, $data);
-            //echo 'END OF THE CELL<hr/>';
-        }
-    }
-    // var_dump($all_data);
-    return $all_data;
-}
-
-function getWordText($element) {
-    // print(get_class($element).'<br />');
-    
-    $result = [];
-
-    // print(get_class($element).'<br/>');
-
-    if ($element instanceof Table) {
-            // Call the recursive function for each table
-            $result = printTextFromTable($element);
-
-    }
-    // and so on for other element types (see src/PhpWord/Element)
-
-    return $result;
 }
 
 function filterAndTransformObjects($objects) {
@@ -197,32 +96,46 @@ function filterAndTransformObjects($objects) {
     return $result;
 }
 
-function process_file($filePath,$dateArray){
+function get_result_from_flat_file($phpWord){
     $all_data = [];
-    $text = '';
-    $objReader = WordIOFactory::createReader('Word2007');
-    $phpWord = $objReader->load($filePath); // instance of \PhpOffice\PhpWord\PhpWord
+    
     foreach ($phpWord->getSections() as $section) {
-        
-    foreach ($section->getElements() as $element) {
-           
-           print(get_class($element).'<br/>');
-
-           if ($element instanceof TextRun) {
-                    array_push($all_data, get_text_run_data($element));
-                    // echo '<br/><br/><br/><br/>';
+        foreach ($section->getElements() as $element) {
+            if ($element instanceof TextRun){
+                array_push($all_data, get_text_run_data($element));
             }
-        //    var_dump($result);
-        //    print_xml($result, $dateArray);
         }
     }
 
-    echo '<pre>' . var_export(filterAndTransformObjects($all_data), true) . '</pre>';
-    // echo json_encode($all_data);
+    return filterAndTransformObjects($all_data);
 }
-$dateArray = [
-        'YEAR' => '2024',
-        'MONTH' => '02',
-        'DAY' => '14',
-    ];
-process_file('sample.docx', $dateArray);
+
+// function process_file($filePath,$dateArray){
+//     $all_data = [];
+//     $text = '';
+//     $objReader = WordIOFactory::createReader('Word2007');
+//     $phpWord = $objReader->load($filePath); // instance of \PhpOffice\PhpWord\PhpWord
+//     foreach ($phpWord->getSections() as $section) {
+        
+//     foreach ($section->getElements() as $element) {
+           
+//            print(get_class($element).'<br/>');
+
+//            if ($element instanceof TextRun) {
+//                     array_push($all_data, get_text_run_data($element));
+//                     // echo '<br/><br/><br/><br/>';
+//             }
+//         //    var_dump($result);
+//         //    print_xml($result, $dateArray);
+//         }
+//     }
+
+//     echo '<pre>' . var_export(filterAndTransformObjects($all_data), true) . '</pre>';
+//     // echo json_encode($all_data);
+// }
+// $dateArray = [
+//         'YEAR' => '2024',
+//         'MONTH' => '02',
+//         'DAY' => '14',
+//     ];
+// process_file('sample.docx', $dateArray);
