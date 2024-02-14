@@ -1,0 +1,18 @@
+{
+    "name": "commandmedia/obits-processor",
+    "type": "project",
+    "require": {
+        "phpoffice/phpword": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Commandmedia\\ObitsProcessor\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Anand Kumar Chaudhary",
+            "email": "anand.kmk@gmail.com"
+        }
+    ]
+}
